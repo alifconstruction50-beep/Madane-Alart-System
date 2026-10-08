@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vehicle Papers</title>
+<style>
+:root{--bg:#eef1f4;--card:#fff;--ink:#14202b;--mute:#5d6b78;--line:#d5dce3;--red:#c62828;--amb:#b26a00;--grn:#1b7a3d;--redbg:#fde9e8;--ambbg:#fff1d6;--grnbg:#e3f4e8;--acc:#0b4f8a}
+@media (prefers-color-scheme:dark){:root{--bg:#10171e;--card:#18222c;--ink:#e8eef3;--mute:#95a3b0;--line:#2b3947;--red:#ff8a80;--amb:#ffc266;--grn:#7bd99a;--redbg:#3a1c1c;--ambbg:#3a2c12;--grnbg:#173223;--acc:#7db8f0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding-top:env(safe-area-inset-top,24px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:960px;margin:0 auto;padding:12px}
+h1{font-size:24px;margin:4px 0 10px}
+.sum{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.sum button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:8px;text-align:left;font:inherit}
+.sum .on{outline:2px solid var(--acc)}
+.tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;color:var(--mute);font:inherit;font-weight:600;padding:8px 12px;border-bottom:3px solid transparent}
+.tabs .on{color:var(--ink);border-color:var(--acc)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;align-items:center;background:var(--card);border:1px solid var(--line);border-left-width:6px;border-radius:6px;padding:8px 10px;margin-bottom:6px}
+.row.red{border-left-color:var(--red)}.row.amb{border-left-color:var(--amb)}.row.grn{border-left-color:var(--grn)}.row.none{border-left-color:var(--line)}
+.plate{font-weight:700;font-size:18px}
+.mute{color:var(--mute)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:700;font-size:14px}
+.tag.red{background:var(--redbg);color:var(--red)}.tag.amb{background:var(--ambbg);color:var(--amb)}.tag.grn{background:var(--grnbg);color:var(--grn)}.tag.none{background:var(--bg);color:var(--mute)}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:8px 14px;font:inherit}
+.btn.p{background:var(--acc);color:var(--bg);border-color:var(--acc);font-weight:700}
+input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;width:100%}
+textarea{min-height:90px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+.panel h2{font-size:17px;margin:0 0 8px}
+.lbl{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+<h1>Vehicle Papers</h1>
+<div class="sum" id="sum"></div>
+<div class="tabs" id="tabs"></div>
+<div id="view"></div>
+</main>
+<script>
+(function(){
+var KEY="vpt_v1",today=new Date();today.setHours(0,0,0,0);
+var S={papers:["Fitness","Tax token","Insurance"],warn:30,vehicles:[]};
+try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&o.vehicles)S=o}}catch(e){}
+var tab="due",filter="all",tm=null;
+var LN=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.LocalNotifications;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}clearTimeout(tm);tm=setTimeout(sched,1000)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function left(d){if(!d)return null;return Math.round((new Date(d+"T00:00:00")-today)/864e5)}
+function st(n){if(n===null)return"none";if(n<0)return"red";if(n<=S.warn)return"amb";return"grn"}
+function txt(n){if(n===null)return"No date";if(n<0)return"Expired "+(-n)+"d ago";if(n===0)return"Expires today";return n+" days left"}
+function uid(){return"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function items(){var a=[];S.vehicles.forEach(function(v){for(var i=0;i<3;i++){var n=left(v.d[i]);a.push({v:v,i:i,n:n,s:st(n)})}});return a}
+async function sched(){
+if(!LN)return;
+try{
+var p=await LN.requestPermissions();if(p.display!=="granted")return;
+var pend=await LN.getPending();
+if(pend.notifications.length)await LN.cancel({notifications:pend.notifications.map(function(n){return{id:n.id}})});
+var list=[],id=1,now=new Date(),pts=[S.warn,7,1,0].filter(function(x,j,a){return a.indexOf(x)===j});
+S.vehicles.forEach(function(v){for(var i=0;i<3;i++){if(!v.d[i])continue;
+pts.forEach(function(k){var at=new Date(v.d[i]+"T09:00:00");at.setDate(at.getDate()-k);
+if(at>now)list.push({id:id++,title:"Paper expiring: "+v.name,body:S.papers[i]+(k===0?" expires TODAY":" expires in "+k+" days"),schedule:{at:at,allowWhileIdle:true}})})}});
+if(list.length)await LN.schedule({notifications:list});
+}catch(e){}
+}
+function sum(){var a=items(),c={red:0,amb:0,grn:0,none:0};a.forEach(function(x){c[x.s]++});
+var defs=[["red","Expired"],["amb","Due in "+S.warn+" days"],["grn","OK"],["none","No date"]];
+document.getElementById("sum").innerHTML=defs.map(function(d){return'<button data-f="'+d[0]+'" class="'+(filter===d[0]?"on":"")+'"><b class="tag '+d[0]+'" style="font-size:26px">'+c[d[0]]+'</b> '+d[1]+'</button>'}).join("")}
+function tabs(){document.getElementById("tabs").innerHTML=[["due","Renewals"],["veh","Vehicles"],["set","Settings"]].map(function(t){return'<button data-t="'+t[0]+'" class="'+(tab===t[0]?"on":"")+'">'+t[1]+'</button>'}).join("")}
+function due(){if(!S.vehicles.length)return'<div class="panel">No vehicles yet. Open <b>Vehicles</b> and add your list.</div>';
+var a=items().filter(function(x){return filter==="all"||x.s===filter});
+a.sort(function(x,y){return(x.n===null?1e9:x.n)-(y.n===null?1e9:y.n)});
+var h=filter!=="all"?'<p><a href="#" data-f="all">Show all</a></p>':"";
+if(!a.length)return h+'<div class="panel">Nothing here.</div>';
+return h+a.map(function(x){return'<div class="row '+x.s+'"><div class="plate">'+esc(x.v.name)+'</div><div style="text-align:right"><span class="tag '+x.s+'">'+txt(x.n)+'</span></div><div>'+esc(S.papers[x.i])+'</div><div class="mute" style="text-align:right">'+(x.v.d[x.i]||"-")+'</div></div>'}).join("")}
+function veh(){var h='<div class="panel"><h2>Add vehicles</h2><textarea id="bulk" placeholder="One vehicle per line"></textarea><div style="margin-top:8px"><button class="btn p" id="addb">Add vehicles</button></div></div>';
+return h+S.vehicles.map(function(v,k){return'<div class="panel"><input data-k="'+k+'" data-n="1" value="'+esc(v.name)+'" aria-label="Vehicle name" style="font-weight:700">'+[0,1,2].map(function(i){return'<div style="margin-top:6px"><span class="lbl">'+esc(S.papers[i])+' expiry</span><input type="date" data-k="'+k+'" data-i="'+i+'" value="'+v.d[i]+'"></div>'}).join("")+'<div style="margin-top:8px"><button class="btn" data-del="'+k+'">Delete vehicle</button></div></div>'}).join("")}
+function set(){return'<div class="panel"><h2>Paper names</h2>'+[0,1,2].map(function(i){return'<input data-p="'+i+'" value="'+esc(S.papers[i])+'" style="margin-bottom:6px">'}).join("")+'</div>'+
+'<div class="panel"><h2>Warn days before expiry</h2><input type="number" id="warn" min="1" max="365" value="'+S.warn+'" style="max-width:120px"><p class="mute">Alerts fire at 9:00 am: this many days before, 7 days, 1 day, and on expiry day. Works offline.</p></div>'+
+'<div class="panel"><h2>Test alert</h2><button class="btn p" id="tst">Alert me in 10 seconds</button></div>'+
+'<div class="panel"><h2>Backup</h2><textarea id="bk">'+esc(JSON.stringify(S))+'</textarea><div style="margin-top:8px;display:flex;gap:8px"><button class="btn" id="cp">Copy</button><button class="btn p" id="rs">Restore from text</button></div></div>'}
+function render(){sum();tabs();document.getElementById("view").innerHTML=tab==="due"?due():tab==="veh"?veh():set()}
+document.addEventListener("click",function(e){var t=e.target,b;
+if(b=t.closest("[data-f]")){e.preventDefault();var f=b.getAttribute("data-f");filter=(filter===f?"all":f);tab="due";render();return}
+if(b=t.closest("[data-t]")){tab=b.getAttribute("data-t");render();return}
+if(t.id==="addb"){document.getElementById("bulk").value.split("\n").map(function(s){return s.trim()}).filter(Boolean).forEach(function(n){S.vehicles.push({id:uid(),name:n,d:["","",""]})});save();render();return}
+if(b=t.closest("[data-del]")){var k=+b.getAttribute("data-del");if(confirm("Delete "+S.vehicles[k].name+"?")){S.vehicles.splice(k,1);save();render()}return}
+if(t.id==="tst"){if(!LN){alert("Only works inside the installed app.");return}
+LN.requestPermissions().then(function(p){if(p.display!=="granted"){alert("Notifications blocked. Allow in phone settings.");return}
+LN.schedule({notifications:[{id:99999,title:"Test alert",body:"Alerts work.",schedule:{at:new Date(Date.now()+10000),allowWhileIdle:true}}]});alert("Close app. Alert comes in 10 seconds.")});return}
+if(t.id==="cp"){var ta=document.getElementById("bk");ta.select();try{navigator.clipboard.writeText(ta.value)}catch(x){document.execCommand("copy")}return}
+if(t.id==="rs"){try{var o=JSON.parse(document.getElementById("bk").value);if(!o||!o.vehicles||!o.papers)throw 0;if(confirm("Replace current data with this backup?")){S=o;save();render()}}catch(x){alert("Backup text is not valid.")}return}
+});
+document.addEventListener("input",function(e){var t=e.target,k=t.getAttribute("data-k");
+if(k!==null){k=+k;if(t.hasAttribute("data-n"))S.vehicles[k].name=t.value;else S.vehicles[k].d[+t.getAttribute("data-i")]=t.value;save();sum();return}
+if(t.hasAttribute("data-p")){S.papers[+t.getAttribute("data-p")]=t.value||"Paper";save();return}
+if(t.id==="warn"){S.warn=Math.max(1,+t.value||30);save();sum()}
+});
+render();sched();
+})();
+</script>
+</body>
+</html>
